@@ -1,34 +1,32 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
 public class DiceManager : MonoBehaviour
 {
-    readonly List<Dice> dice = new List<Dice>();
+    public List<Dice> dices = new List<Dice>();
 
-    public void Register(Dice d)
+    public void RegisterDice(Dice dice)
     {
-        if (d && !dice.Contains(d)) dice.Add(d);
+        dices.Add(dice);
     }
 
-    public void ClearAll()
+
+    // Проверка, остановились ли все кубики
+    public bool AllStopped()
     {
-        dice.Clear();
+        return dices.All(d => d.IsStopped());
     }
 
-    public IEnumerator WaitUntilAllSettled()
+    // Суммирует значения всех кубиков
+    public int GetTotalValue()
     {
-        // Ждём, пока у всех IsSettled = true
-        while (true)
-        {
-            if (dice.Count > 0 && dice.All(d => d != null && d.IsSettled)) break;
-            yield return null;
-        }
+        return dices.Sum(d => d.GetValue());
     }
 
-    public int[] GetValues()
+    // Очищает список кубиков перед новым броском
+    public void Clear()
     {
-        return dice.Where(d => d != null).Select(d => d.CurrentValue).ToArray();
+        dices.Clear();
     }
 }

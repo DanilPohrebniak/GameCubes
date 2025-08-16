@@ -1,21 +1,17 @@
-﻿using System.Collections;
-using UnityEngine;
+﻿using UnityEngine;
+using System.Collections;
+using System.Linq;
 
 public class GameManager : MonoBehaviour
 {
     public CubeSpawner spawner;
     public DiceManager diceManager;
 
-    [Header("Игра")]
-    public int playersCount = 2;
-    public int targetScore = 3000;
-
-    int currentPlayer = 0;
-    int[] totalScores;
+    private int currentPlayer = 1;
+    private int[] scores = new int[2];
 
     void Start()
     {
-        totalScores = new int[playersCount];
         StartCoroutine(GameLoop());
     }
 
@@ -23,43 +19,31 @@ public class GameManager : MonoBehaviour
     {
         while (true)
         {
-            // 1) Бросаем
-            yield return spawner.SpawnAndThrow();
+            Debug.Log($"Игрок {currentPlayer}, нажмите кнопку для броска!");
 
-            // 2) Ждём «стоп»
-            yield return diceManager.WaitUntilAllSettled();
+            // Ждём пока игрок бросит кубики
+            yield return new WaitUntil(() => diceManager.dices.Count > 0);
 
-            // 3) Считаем
-            var values = diceManager.GetValues();
-            int gained = ScoreCalculator.CalculateMaxScore(values);
+            // Ждём пока кубики остановятся
+            yield return new WaitUntil(() => diceManager.AllStopped());
 
-            // TODO: здесь можно вывести значения/очки на UI
-            Debug.Log($"Player {currentPlayer + 1} rolled: [{string.Join(",", values)}] -> +{gained}");
+            // Получаем значения кубиков
+            int[] values = diceManager.dices.Select(d => d.GetValue()).ToArray();
+            int result = ScoreCalculator.CalculateScore(values);
 
-            if (gained == 0)
-            {
-                // Сгорел — очки не добавляем
-                Debug.Log($"Player {currentPlayer + 1} busts!");
-            }
-            else
-            {
-                totalScores[currentPlayer] += gained;
-            }
+            scores[currentPlayer - 1] += result;
 
-            // Победа?
-            if (totalScores[currentPlayer] >= targetScore)
-            {
-                Debug.Log($"Player {currentPlayer + 1} WINS with {totalScores[currentPlayer]} pts!");
-                // Здесь можно показать UI победы и выйти из цикла
-                yield break;
-            }
+            Debug.Log($"Игрок {currentPlayer} выбросил {string.Join(",", values)}. Очки: {scores[0]} - {scores[1]}");
 
-            // Передаём ход
-            currentPlayer = (currentPlayer + 1) % playersCount;
+            // Уничтожаем кубики после броска
+            foreach (var dice in diceManager.dices)
+                if (dice != null)
+                    Destroy(dice.gameObject);
 
-            // На минималках — просто следующая итерация (респавним новые кости).
-            // Позже можно: удалять старые кубики, вызывать спавн заново, дать рероллы и выбор.
-            yield return new WaitForSeconds(0.5f);
+            diceManager.Clear();
+
+            // Меняем игрока
+            currentPlayer = (currentPlayer == 1) ? 2 : 1;
         }
     }
 }

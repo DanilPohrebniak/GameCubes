@@ -3,63 +3,70 @@ using System.Collections;
 
 public class CubeSpawner : MonoBehaviour
 {
-    [Header("Кубики")]
+    [Header("Settings")]
     public GameObject cubePrefab;
     public int cubeCount = 6;
     public float throwForce = 2f;
     public float spawnOffset = 0.5f;
     public float tableHalfWidth = 1.4f;
 
-    [Header("Рука")]
+    [Header("Hand Settings")]
     public Transform hand;
     public float handPushDistance = 0.3f;
     public float handPushDuration = 0.2f;
 
-    [Header("Связи")]
+    [Header("References")]
     public DiceManager diceManager;
-    public bool autoStart = true;
 
-    void Start()
+    private bool isRolling = false;
+
+    void Update()
     {
-        if (autoStart) StartCoroutine(ThrowWithHand());
+        // Проверяем нажатие клавиши F и что бросок не выполняется
+        if (Input.GetKeyDown(KeyCode.F) && !isRolling)
+        {
+            StartCoroutine(ThrowWithHand());
+        }
     }
 
-    public IEnumerator SpawnAndThrow()
+    public IEnumerator ThrowWithHand()
     {
-        yield return StartCoroutine(ThrowWithHand());
-    }
+        isRolling = true;
 
-    IEnumerator ThrowWithHand()
-    {
-        if (diceManager) diceManager.ClearAll();
+        // Очищаем старые кубики
+        diceManager.Clear();
 
         // Анимация руки
         if (hand != null)
             yield return StartCoroutine(PushHand());
 
-        // Спавн и бросок
+        // Создаём кубики
         for (int i = 0; i < cubeCount; i++)
         {
             Vector3 forward = transform.forward;
             Vector3 right = transform.right;
+
             float sideOffset = Random.Range(-tableHalfWidth, tableHalfWidth);
             Vector3 spawnPos = transform.position + right * sideOffset + forward * spawnOffset;
 
             GameObject cube = Instantiate(cubePrefab, spawnPos, Quaternion.identity);
             cube.transform.localScale = Vector3.one * 0.33f;
 
-            // Регистрируем Dice
-            var dice = cube.GetComponent<Dice>();
-            if (diceManager && dice) diceManager.Register(dice);
-
-            var rb = cube.GetComponent<Rigidbody>();
+            Rigidbody rb = cube.GetComponent<Rigidbody>();
             if (rb != null)
             {
                 Vector3 throwDir = forward + new Vector3(0f, Random.Range(-0.05f, 0.05f), 0f);
                 rb.AddForce(throwDir.normalized * throwForce, ForceMode.Impulse);
                 rb.AddTorque(Random.insideUnitSphere * 1f, ForceMode.Impulse);
             }
+
+            // Регистрируем кубик
+            Dice dice = cube.GetComponent<Dice>();
+            if (dice != null)
+                diceManager.RegisterDice(dice);
         }
+
+        isRolling = false;
     }
 
     IEnumerator PushHand()

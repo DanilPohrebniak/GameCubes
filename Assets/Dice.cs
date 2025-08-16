@@ -1,70 +1,39 @@
 ﻿using UnityEngine;
 
-[RequireComponent(typeof(Rigidbody))]
 public class Dice : MonoBehaviour
 {
-    [Tooltip("Индексы: 0->1, 1->2, ... 5->6")]
-    public Transform[] faceAnchors = new Transform[6];
+    [Header("Face Anchors")]
+    public Transform[] faceAnchors; // 6 пустых объектов, привязанных к граням кубика
 
-    public int CurrentValue { get; private set; } = 0;
-    public bool IsSettled { get; private set; } = false;
-
-    [Header("Порог успокоения")]
-    [SerializeField] float linearThreshold = 0.05f;
-    [SerializeField] float angularThreshold = 1.0f;
-    [SerializeField] float stableTime = 0.25f;
-
-    Rigidbody rb;
-    float timer;
+    private Rigidbody rb;
 
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
     }
 
-    void Update()
+    public bool IsStopped()
     {
-        // Отслеживаем "успокоился ли" кубик
-        if (rb.linearVelocity.magnitude < linearThreshold && rb.angularVelocity.magnitude < angularThreshold)
-        {
-            timer += Time.deltaTime;
-            if (!IsSettled && timer >= stableTime)
-            {
-                IsSettled = true;
-                EvaluateTopFace();
-            }
-        }
-        else
-        {
-            // Движется — сбрасываем таймер и флаг
-            timer = 0f;
-            if (IsSettled) IsSettled = false;
-        }
+        return rb.IsSleeping();
     }
 
-    void EvaluateTopFace()
+    public int GetValue()
     {
-        // Выбираем якорь с max dot(anch.up, worldUp)
-        int best = -1;
-        float bestDot = -999f;
-        for (int i = 0; i < faceAnchors.Length; i++)
+        if (!IsStopped()) return 0; // если кубик ещё крутится — 0
+
+        Transform bestFace = null;
+        float maxDot = -1f;
+
+        foreach (var face in faceAnchors)
         {
-            if (!faceAnchors[i]) continue;
-            float d = Vector3.Dot(faceAnchors[i].up, Vector3.up);
-            if (d > bestDot)
+            float dot = Vector3.Dot(face.up, Vector3.up);
+            if (dot > maxDot)
             {
-                bestDot = d;
-                best = i;
+                maxDot = dot;
+                bestFace = face;
             }
         }
-        CurrentValue = best >= 0 ? best + 1 : 0;
-    }
 
-    // Полезно при повторном броске
-    public void ResetSettle()
-    {
-        IsSettled = false;
-        timer = 0f;
-        CurrentValue = 0;
+        return bestFace != null ? bestFace.GetSiblingIndex() + 1 : 0; // индекс+1 = число
     }
 }
