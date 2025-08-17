@@ -3,13 +3,6 @@ using System.Collections;
 
 public class CubeSpawner : MonoBehaviour
 {
-    [Header("Settings")]
-    public GameObject cubePrefab;
-    public int cubeCount = 6;
-    public float throwForce = 2f;
-    public float spawnOffset = 0.5f;
-    public float tableHalfWidth = 1.4f;
-
     [Header("Hand Settings")]
     public Transform hand;
     public float handPushDistance = 0.3f;
@@ -22,7 +15,6 @@ public class CubeSpawner : MonoBehaviour
 
     void Update()
     {
-        // Проверяем нажатие клавиши F и что бросок не выполняется
         if (Input.GetKeyDown(KeyCode.F) && !isRolling)
         {
             StartCoroutine(ThrowWithHand());
@@ -33,38 +25,15 @@ public class CubeSpawner : MonoBehaviour
     {
         isRolling = true;
 
-        // Очищаем старые кубики
-        diceManager.Clear();
-
         // Анимация руки
         if (hand != null)
             yield return StartCoroutine(PushHand());
 
-        // Создаём кубики
-        for (int i = 0; i < cubeCount; i++)
-        {
-            Vector3 forward = transform.forward;
-            Vector3 right = transform.right;
+        // Создание и бросок кубиков
+        diceManager.SpawnAndThrow(transform);
 
-            float sideOffset = Random.Range(-tableHalfWidth, tableHalfWidth);
-            Vector3 spawnPos = transform.position + right * sideOffset + forward * spawnOffset;
-
-            GameObject cube = Instantiate(cubePrefab, spawnPos, Quaternion.identity);
-            cube.transform.localScale = Vector3.one * 0.33f;
-
-            Rigidbody rb = cube.GetComponent<Rigidbody>();
-            if (rb != null)
-            {
-                Vector3 throwDir = forward + new Vector3(0f, Random.Range(-0.05f, 0.05f), 0f);
-                rb.AddForce(throwDir.normalized * throwForce, ForceMode.Impulse);
-                rb.AddTorque(Random.insideUnitSphere * 1f, ForceMode.Impulse);
-            }
-
-            // Регистрируем кубик
-            Dice dice = cube.GetComponent<Dice>();
-            if (dice != null)
-                diceManager.RegisterDice(dice);
-        }
+        // Сообщаем GameManager, что начался новый бросок
+        GameManager.Instance.OnDiceThrown();
 
         isRolling = false;
     }
